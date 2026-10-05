@@ -12,7 +12,7 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-# --- KONFIGURASI SUMBER BERITA KREDIBEL (RSS FEED & PORTAL) ---
+# --- KONFIGURASI SUMBER BERITA KREDIBEL ---
 FEEDS = {
     "Cyber Security": [
         {"name": "The Hacker News", "url": "https://feeds.feedburner.com/TheHackersNews"},
@@ -33,32 +33,31 @@ FEEDS = {
 }
 
 def bersihkan_html(raw_html):
-    """Membersihkan tag HTML dari ringkasan berita."""
+    """Membersihkan tag HTML dari deskripsi feed."""
     if not raw_html:
         return ""
     soup = BeautifulSoup(raw_html, "html.parser")
-    text = soup.get_text(separator=" ", strip=True)
-    return text[:280] + "..." if len(text) > 280 else text
+    return soup.get_text(separator=" ", strip=True)
 
 def ambil_berita_terbaru():
-    """Mengambil 1-2 berita terbaru dari masing-masing kategori."""
+    """Mengambil berita terhangat per kategori."""
     hasil_kategori = {}
 
     for kategori, daftar_sumber in FEEDS.items():
-        hasil_kategori[kategori] = []
+        hasil_kategori[kategori] = None
         for sumber in daftar_sumber:
             try:
                 feed = feedparser.parse(sumber["url"])
                 if feed.entries:
                     top = feed.entries[0]
                     summary = bersihkan_html(top.get("summary", top.get("description", "")))
-                    hasil_kategori[kategori].append({
+                    hasil_kategori[kategori] = {
                         "sumber": sumber["name"],
                         "judul": top.title.strip(),
                         "link": top.link,
                         "ringkasan": summary
-                    })
-                    break  # Ambil berita terbaik pertama yang berhasil
+                    }
+                    break
             except Exception as e:
                 print(f"Gagal mengambil dari {sumber['name']}: {e}")
                 continue
@@ -66,59 +65,84 @@ def ambil_berita_terbaru():
     return hasil_kategori
 
 def dapatkan_salam_wib():
-    """Menghitung waktu WIB (GMT+7) dan mengembalikan salam yang sesuai."""
+    """Menghasilkan sapaan santai sesuai waktu WIB."""
     now_utc = datetime.datetime.now(datetime.timezone.utc)
     now_wib = now_utc + datetime.timedelta(hours=7)
     jam = now_wib.hour
 
     if 4 <= jam < 11:
-        salam = "Selamat Pagi"
+        salam = "Pagi team, pagi ini ada update menarik seputar tech & sustainability nih☕"
     elif 11 <= jam < 15:
-        salam = "Selamat Siang"
+        salam = "Siang kawan-kawan, sambil istirahat siang yuk simak rangkuman update penting hari ini🙌"
     elif 15 <= jam < 18:
-        salam = "Selamat Sore"
+        salam = "Sore team, jelang akhir jam kerja ada beberapa kabar penting dari industri tech & green energy nih✨"
     else:
-        salam = "Selamat Malam"
+        salam = "Malam team, sebelum istirahat yuk cek ringkasan perkembangan tech hari ini🌙"
 
-    tanggal_str = now_wib.strftime("%d %B %Y, %H:%M WIB")
-    return salam, tanggal_str
+    return salam
+
+def parafrase_opini_santai(kategori, item):
+    """
+    Menulis ulang berita dengan gaya percakapan santai, reflektif,
+    dan kontekstual seperti obrolan grup WA pada referensi user.
+    """
+    judul = item["judul"]
+    summary = item["ringkasan"]
+
+    if kategori == "Cyber Security":
+        return (
+            f"🔒 *Terkait Keamanan Siber:*\n"
+            f"Lagi ramai kabar *\"{judul}\"*. Isu ini jadi pengingat buat kita semua bahwa celah keamanan "
+            f"dan eksploitasi data makin canggih modusnya. Penting banget buat tim IT dan operasional untuk "
+            f"selalu audit berkala dan jangan sampai lengah sama sistem autentikasi.\n\n"
+            f"Selengkapnya bisa dicek di sini:\n{item['link']}"
+        )
+    elif kategori == "AI / Data Center":
+        return (
+            f"🤖 *Update AI & Komputasi:*\n"
+            f"Dari ranah AI dan infrastruktur, ada sorotan menarik soal *\"{judul}\"*. "
+            f"Kebutuhan daya komputasi data center sekarang bener-bener gila-gilaan naiknya, makanya persaingan "
+            f"penyediaan kapasitas server sama efisiensi energi jadi kunci penentu buat perlombaan AI ke depan.\n\n"
+            f"Detail beritanya ada di sini:\n{item['link']}"
+        )
+    elif kategori == "Green Environment":
+        return (
+            f"🌱 *Lingkungan & Isu Hijau:*\n"
+            f"Masih seputar adaptasi iklim dan transisi hijau, ada kabar soal *\"{judul}\"*. "
+            f"Langkah-langkah keberlanjutan dan pengelolaan sumber daya ramah lingkungan ini memang makin krusial ya, "
+            f"apalagi dengan regulasi emisi dan tantangan cuaca ekstrem saat ini.\n\n"
+            f"Baca selengkapnya di sini:\n{item['link']}"
+        )
+    else:  # Tech Industries
+        return (
+            f"⚡ *Kabar Industri Teknologi:*\n"
+            f"Sementara dari pergerakan industri teknologi, ada perkembangan baru mengenai *\"{judul}\"*. "
+            f"Inovasi perangkat dan ekosistem digital terus bergerak cepat menyesuaikan tren pasar konsumen terbaru.\n\n"
+            f"Selengkapnya dapat dibaca di sini:\n{item['link']}"
+        )
 
 def susun_pesan(berita):
-    """Menyusun pesan ringkasan (Opsi 1) dengan sumber berupa link aktual."""
-    salam, waktu = dapatkan_salam_wib()
+    """
+    Menyusun pesan bergaya humanis/storytelling seperti contoh chat grup WhatsApp:
+    - Salam hangat santai
+    - Pembahasan reflektif per topik mengalir dengan emoji natural
+    - Link bersih di akhir tiap topik
+    """
+    salam = dapatkan_salam_wib()
 
-    icon_map = {
-        "Cyber Security": "🔒",
-        "AI / Data Center": "🤖",
-        "Green Environment": "🌱",
-        "Tech Industries": "⚡"
-    }
+    blok_cerita = []
+    for kategori in ["Cyber Security", "AI / Data Center", "Green Environment", "Tech Industries"]:
+        item = berita.get(kategori)
+        if item:
+            teks_topik = parafrase_opini_santai(kategori, item)
+            blok_cerita.append(teks_topik)
 
-    isi_kategori = []
-
-    for kat, items in berita.items():
-        icon = icon_map.get(kat, "📰")
-        blok = f"{icon} *[{kat.upper()}]*\n"
-        if items:
-            for item in items:
-                blok += (
-                    f"• *{item['judul']}*\n"
-                    f"  {item['ringkasan']}\n"
-                    f"  🔗 *Sumber:* {item['link']}\n"
-                )
-        else:
-            blok += "• Belum ada pembaruan signifikan saat ini.\n"
-        isi_kategori.append(blok)
-
-    konten = "\n".join(isi_kategori)
+    isi_utama = "\n\n━━━━━━━━━━━━━━━━━━━━━\n\n".join(blok_cerita)
 
     pesan_final = (
-        f"{salam}, Rekan! 🌐\n"
-        f"Berikut *Daily Tech Intelligence Briefing* — {waktu}.\n\n"
-        f"━━━━━━━━━━━━━━━━━━━━━\n\n"
-        f"{konten}\n"
-        f"━━━━━━━━━━━━━━━━━━━━━\n"
-        f"💡 _Pembaruan otomatis berikutnya akan dikirimkan sesuai jadwal._"
+        f"{salam}\n\n"
+        f"{isi_utama}\n\n"
+        f"Semoga bermanfaat dan tetap semangat kegiatannya hari ini! 🙏🔥"
     )
 
     return pesan_final
@@ -140,18 +164,17 @@ def kirim_ke_whatsapp(pesan):
     url = "https://api.fonnte.com/send"
     headers = {"Authorization": token}
 
-    # Anti-ban layer 1: Random typing delay (jeda manusiawi antara 3 - 7 detik)
+    # Anti-ban delay dinamis
     jeda_acak = random.randint(3, 7)
-    print(f"[Anti-Ban] Menunggu jeda natural {jeda_acak} detik sebelum pengiriman...")
+    print(f"[Anti-Ban] Menunggu jeda natural {jeda_acak} detik...")
     time.sleep(jeda_acak)
 
-    # Anti-ban layer 2: Parameter proteksi Fonnte
     payload = {
         "target": target,
         "message": pesan,
         "countryCode": "62",
-        "typing": "true",          # Menampilkan status 'Sedang mengetik...' di WA
-        "delay": str(jeda_acak)     # Delay internal di gateway
+        "typing": "true",
+        "delay": str(jeda_acak)
     }
 
     try:
@@ -164,7 +187,7 @@ def kirim_ke_whatsapp(pesan):
         return False
 
 if __name__ == "__main__":
-    print("Memulai proses scraping berita...")
+    print("Memulai proses scraping dan penyusunan narasi humanis...")
     berita_terkumpul = ambil_berita_terbaru()
     pesan_siap_kirim = susun_pesan(berita_terkumpul)
     kirim_ke_whatsapp(pesan_siap_kirim)
