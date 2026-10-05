@@ -65,19 +65,21 @@ def ambil_berita_terbaru():
     return hasil_kategori
 
 def dapatkan_salam_wib():
-    """Menghasilkan sapaan santai sesuai waktu WIB."""
+    """
+    Menghasilkan sapaan santai sesuai kebutuhan user:
+    - Jadwal Jam 3 Sore (15:00 WIB): Ucapan 'Selamat Sore'
+    - Jadwal Jam 9 Malam (21:00 WIB): Ucapan 'Selamat Pagi' (karena bahan kurasi disiapkan untuk di-forward esok paginya)
+    """
     now_utc = datetime.datetime.now(datetime.timezone.utc)
     now_wib = now_utc + datetime.timedelta(hours=7)
     jam = now_wib.hour
 
-    if 4 <= jam < 11:
-        salam = "Pagi team, pagi ini ada update menarik seputar tech & sustainability nih☕"
-    elif 11 <= jam < 15:
-        salam = "Siang kawan-kawan, sambil istirahat siang yuk simak rangkuman update penting hari ini🙌"
-    elif 15 <= jam < 18:
+    # Jika berjalan sekitar jam 15:00 WIB (fase sore)
+    if 13 <= jam < 19:
         salam = "Sore team, jelang akhir jam kerja ada beberapa kabar penting dari industri tech & green energy nih✨"
     else:
-        salam = "Malam team, sebelum istirahat yuk cek ringkasan perkembangan tech hari ini🌙"
+        # Jika jam 21:00 WIB atau jam lainnya (disiapkan khusus bertema Pagi hari)
+        salam = "Pagi team, pagi ini ada update menarik seputar tech & sustainability nih☕"
 
     return salam
 
