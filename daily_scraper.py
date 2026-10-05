@@ -124,7 +124,10 @@ def susun_pesan(berita):
     return pesan_final
 
 def kirim_ke_whatsapp(pesan):
-    """Mengirim pesan via Fonnte WhatsApp API."""
+    """Mengirim pesan via Fonnte WhatsApp API dengan perlindungan Anti-Banned."""
+    import time
+    import random
+
     token = os.getenv("FONNTE_TOKEN")
     target = os.getenv("WA_TARGET_NUMBER")
 
@@ -136,14 +139,23 @@ def kirim_ke_whatsapp(pesan):
 
     url = "https://api.fonnte.com/send"
     headers = {"Authorization": token}
+
+    # Anti-ban layer 1: Random typing delay (jeda manusiawi antara 3 - 7 detik)
+    jeda_acak = random.randint(3, 7)
+    print(f"[Anti-Ban] Menunggu jeda natural {jeda_acak} detik sebelum pengiriman...")
+    time.sleep(jeda_acak)
+
+    # Anti-ban layer 2: Parameter proteksi Fonnte
     payload = {
         "target": target,
         "message": pesan,
-        "countryCode": "62"  # Kode negara Indonesia
+        "countryCode": "62",
+        "typing": "true",          # Menampilkan status 'Sedang mengetik...' di WA
+        "delay": str(jeda_acak)     # Delay internal di gateway
     }
 
     try:
-        response = requests.post(url, headers=headers, data=payload, timeout=20)
+        response = requests.post(url, headers=headers, data=payload, timeout=30)
         res_data = response.json()
         print(f"Status Kirim WA: {res_data}")
         return res_data.get("status") == True
