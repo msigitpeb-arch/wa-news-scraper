@@ -12,35 +12,57 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-# --- KONFIGURASI SUMBER BERITA KREDIBEL ---
+# ==============================================================================
+# KONFIGURASI SUMBER BERITA KREDIBEL
+# Terdiri dari 5 Media Kredibel Indonesia + Media Global Khusus
+# ==============================================================================
 FEEDS = {
+    # 1. Renewable Energy & Green Environment (Prioritas Nasional & Global)
+    "Renewable Energy & Lingkungan": [
+        {"name": "Mongabay Indonesia", "url": "https://www.mongabay.co.id/feed/", "lang": "id"},
+        {"name": "CleanTechnica", "url": "https://cleantechnica.com/feed/", "lang": "en"},
+        {"name": "GreenBiz", "url": "https://www.greenbiz.com/rss.xml", "lang": "en"},
+    ],
+
+    # 2. Cyber Security (Keamanan Siber & Insiden Data)
     "Cyber Security": [
-        {"name": "The Hacker News", "url": "https://feeds.feedburner.com/TheHackersNews"},
-        {"name": "BleepingComputer", "url": "https://www.bleepingcomputer.com/feed/"},
+        {"name": "CNN Indonesia (Teknologi & Keamanan)", "url": "https://www.cnnindonesia.com/teknologi/rss", "lang": "id", "filter": ["hacker", "siber", "bobol", "keamanan", "data", "serangan", "malware", "phishing", "ransomware", "security"]},
+        {"name": "The Hacker News", "url": "https://feeds.feedburner.com/TheHackersNews", "lang": "en"},
+        {"name": "BleepingComputer", "url": "https://www.bleepingcomputer.com/feed/", "lang": "en"},
     ],
-    "AI / Data Center": [
-        {"name": "VentureBeat AI", "url": "https://venturebeat.com/category/ai/feed/"},
-        {"name": "Data Center Dynamics", "url": "https://www.datacenterdynamics.com/en/rss/"},
+
+    # 3. AI & Data Center (Infrastruktur Komputasi & Kecerdasan Buatan)
+    "AI & Data Center": [
+        {"name": "CNBC Indonesia (Tech & AI)", "url": "https://www.cnbcindonesia.com/tech/rss", "lang": "id", "filter": ["ai", "kecerdasan", "data center", "server", "komputasi", "chip", "nvidia", "cloud"]},
+        {"name": "VentureBeat AI", "url": "https://venturebeat.com/category/ai/feed/", "lang": "en"},
+        {"name": "Data Center Dynamics", "url": "https://www.datacenterdynamics.com/en/rss/", "lang": "en"},
     ],
-    "Green Environment": [
-        {"name": "CleanTechnica", "url": "https://cleantechnica.com/feed/"},
-        {"name": "GreenBiz", "url": "https://www.greenbiz.com/rss.xml"},
-    ],
-    "Tech Industries": [
-        {"name": "The Verge", "url": "https://www.theverge.com/rss/index.xml"},
-        {"name": "Ars Technica", "url": "https://feeds.arstechnica.com/arstechnica/index"},
+
+    # 4. Tech & Inovasi Perkembangan Teknologi
+    "Tech & Inovasi Teknologi": [
+        {"name": "Antara News (Tekno & Riset)", "url": "https://www.antaranews.com/rss/tekno.xml", "lang": "id"},
+        {"name": "Republika Inovasi", "url": "https://www.republika.co.id/rss/retizen", "lang": "id"},
+        {"name": "The Verge", "url": "https://www.theverge.com/rss/index.xml", "lang": "en"},
+        {"name": "Ars Technica", "url": "https://feeds.arstechnica.com/arstechnica/index", "lang": "en"},
     ]
 }
 
 def bersihkan_html(raw_html):
-    """Membersihkan tag HTML dari deskripsi feed."""
+    """Membersihkan tag HTML dari ringkasan berita."""
     if not raw_html:
         return ""
     soup = BeautifulSoup(raw_html, "html.parser")
-    return soup.get_text(separator=" ", strip=True)
+    text = soup.get_text(separator=" ", strip=True)
+    return text[:260] + "..." if len(text) > 260 else text
 
 def ambil_berita_terbaru():
-    """Mengambil berita terhangat per kategori."""
+    """
+    Cara Kerja Pemilihan Berita (Sistem Prioritas & Failover):
+    1. Memprioritaskan topik utama (Renewable energy, Cyber security, Tech, AI, dan inovasi).
+    2. Mencari di media utama (Indonesia). Jika ada filter kata kunci, dicocokkan ke entri terbaru.
+    3. Jika media pertama tidak memiliki berita relevan terbaru atau gagal diakses, 
+       otomatis failover ke sumber rujukan cadangan berikutnya tanpa henti.
+    """
     hasil_kategori = {}
 
     for kategori, daftar_sumber in FEEDS.items():
@@ -48,18 +70,34 @@ def ambil_berita_terbaru():
         for sumber in daftar_sumber:
             try:
                 feed = feedparser.parse(sumber["url"])
-                if feed.entries:
-                    top = feed.entries[0]
-                    summary = bersihkan_html(top.get("summary", top.get("description", "")))
+                if not feed.entries:
+                    continue
+
+                filter_keywords = sumber.get("filter")
+                artikel_terpilih = None
+
+                if filter_keywords:
+                    # Cari entri terbaru yang judul atau ringkasannya cocok dengan kata kunci topik
+                    for entry in feed.entries[:15]:
+                        teks_gabungan = (entry.title + " " + entry.get("summary", "")).lower()
+                        if any(kw in teks_gabungan for kw in filter_keywords):
+                            artikel_terpilih = entry
+                            break
+                else:
+                    # Ambil entri paling atas (terbaru)
+                    artikel_terpilih = feed.entries[0]
+
+                if artikel_terpilih:
+                    summary = bersihkan_html(artikel_terpilih.get("summary", artikel_terpilih.get("description", "")))
                     hasil_kategori[kategori] = {
                         "sumber": sumber["name"],
-                        "judul": top.title.strip(),
-                        "link": top.link,
+                        "judul": artikel_terpilih.title.strip(),
+                        "link": artikel_terpilih.link,
                         "ringkasan": summary
                     }
-                    break
+                    break  # Berhasil menemukan berita valid untuk kategori ini, lanjut ke kategori berikutnya
             except Exception as e:
-                print(f"Gagal mengambil dari {sumber['name']}: {e}")
+                print(f"[Failover] Gagal/timeout pada {sumber['name']}: {e}. Berpindah ke cadangan...")
                 continue
 
     return hasil_kategori
@@ -74,11 +112,9 @@ def dapatkan_salam_wib():
     now_wib = now_utc + datetime.timedelta(hours=7)
     jam = now_wib.hour
 
-    # Jika berjalan sekitar jam 15:00 WIB (fase sore)
     if 13 <= jam < 19:
         salam = "Sore team, jelang akhir jam kerja ada beberapa kabar penting dari industri tech & green energy nih✨"
     else:
-        # Jika jam 21:00 WIB atau jam lainnya (disiapkan khusus bertema Pagi hari)
         salam = "Pagi team, pagi ini ada update menarik seputar tech & sustainability nih☕"
 
     return salam
@@ -89,55 +125,58 @@ def parafrase_opini_santai(kategori, item):
     dan kontekstual seperti obrolan grup WA pada referensi user.
     """
     judul = item["judul"]
-    summary = item["ringkasan"]
+    sumber = item["sumber"]
+    link = item["link"]
 
-    if kategori == "Cyber Security":
+    if kategori == "Renewable Energy & Lingkungan":
         return (
-            f"🔒 *Terkait Keamanan Siber:*\n"
-            f"Lagi ramai kabar *\"{judul}\"*. Isu ini jadi pengingat buat kita semua bahwa celah keamanan "
-            f"dan eksploitasi data makin canggih modusnya. Penting banget buat tim IT dan operasional untuk "
-            f"selalu audit berkala dan jangan sampai lengah sama sistem autentikasi.\n\n"
-            f"Selengkapnya bisa dicek di sini:\n{item['link']}"
+            f"🌱 *Energi Terbarukan & Lingkungan:*\n"
+            f"Isu transisi hijau lagi hangat nih, ada kabar *\"{judul}\"*. "
+            f"Langkah-langkah adaptasi iklim dan dorongan energi terbarukan ini memang krusial banget ya buat "
+            f"keberlanjutan industri kita ke depan.\n\n"
+            f"Selengkapnya dapat dibaca di sini:\n{link}"
         )
-    elif kategori == "AI / Data Center":
+    elif kategori == "Cyber Security":
         return (
-            f"🤖 *Update AI & Komputasi:*\n"
-            f"Dari ranah AI dan infrastruktur, ada sorotan menarik soal *\"{judul}\"*. "
-            f"Kebutuhan daya komputasi data center sekarang bener-bener gila-gilaan naiknya, makanya persaingan "
-            f"penyediaan kapasitas server sama efisiensi energi jadi kunci penentu buat perlombaan AI ke depan.\n\n"
-            f"Detail beritanya ada di sini:\n{item['link']}"
+            f"🔒 *Keamanan Siber (Cyber Security):*\n"
+            f"Dari lini pertahanan data, lagi ramai kabar *\"{judul}\"*. "
+            f"Ini jadi pengingat penting buat kita semua bahwa celah keamanan dan pola eksploitasi data makin canggih. "
+            f"Penting banget tim operasional buat terus perkuat proteksi autentikasi.\n\n"
+            f"Detail beritanya bisa dicek di sini:\n{link}"
         )
-    elif kategori == "Green Environment":
+    elif kategori == "AI & Data Center":
         return (
-            f"🌱 *Lingkungan & Isu Hijau:*\n"
-            f"Masih seputar adaptasi iklim dan transisi hijau, ada kabar soal *\"{judul}\"*. "
-            f"Langkah-langkah keberlanjutan dan pengelolaan sumber daya ramah lingkungan ini memang makin krusial ya, "
-            f"apalagi dengan regulasi emisi dan tantangan cuaca ekstrem saat ini.\n\n"
-            f"Baca selengkapnya di sini:\n{item['link']}"
+            f"🤖 *AI & Infrastruktur Komputasi:*\n"
+            f"Menyoroti perkembangan AI dan data center, ada update menarik soal *\"{judul}\"*. "
+            f"Kebutuhan daya komputasi server sekarang makin intensif, makanya kesiapan infrastruktur data center "
+            f"sama efisiensi energi jadi kunci penentu persaingan AI.\n\n"
+            f"Baca selengkapnya di sini:\n{link}"
         )
-    else:  # Tech Industries
+    else:  # Tech & Inovasi Teknologi
         return (
-            f"⚡ *Kabar Industri Teknologi:*\n"
-            f"Sementara dari pergerakan industri teknologi, ada perkembangan baru mengenai *\"{judul}\"*. "
-            f"Inovasi perangkat dan ekosistem digital terus bergerak cepat menyesuaikan tren pasar konsumen terbaru.\n\n"
-            f"Selengkapnya dapat dibaca di sini:\n{item['link']}"
+            f"⚡ *Tech & Inovasi Terkini:*\n"
+            f"Sementara dari inovasi teknologi industri, ada perkembangan seputar *\"{judul}\"*. "
+            f"Akselerasi inovasi perangkat dan solusi digital terus bergerak cepat mengikuti kebutuhan pasar saat ini.\n\n"
+            f"Selengkapnya bisa dilihat di sini:\n{link}"
         )
 
 def susun_pesan(berita):
-    """
-    Menyusun pesan bergaya humanis/storytelling seperti contoh chat grup WhatsApp:
-    - Salam hangat santai
-    - Pembahasan reflektif per topik mengalir dengan emoji natural
-    - Link bersih di akhir tiap topik
-    """
+    """Menyusun format chat grup santai dengan urutan topik terkurasi."""
     salam = dapatkan_salam_wib()
 
     blok_cerita = []
-    for kategori in ["Cyber Security", "AI / Data Center", "Green Environment", "Tech Industries"]:
-        item = berita.get(kategori)
+    urutan_topik = [
+        "Renewable Energy & Lingkungan",
+        "Cyber Security",
+        "AI & Data Center",
+        "Tech & Inovasi Teknologi"
+    ]
+
+    for kat in urutan_topik:
+        item = berita.get(kat)
         if item:
-            teks_topik = parafrase_opini_santai(kategori, item)
-            blok_cerita.append(teks_topik)
+            teks = parafrase_opini_santai(kat, item)
+            blok_cerita.append(teks)
 
     isi_utama = "\n\n━━━━━━━━━━━━━━━━━━━━━\n\n".join(blok_cerita)
 
@@ -166,7 +205,7 @@ def kirim_ke_whatsapp(pesan):
     url = "https://api.fonnte.com/send"
     headers = {"Authorization": token}
 
-    # Anti-ban delay dinamis
+    # Anti-ban: jeda manusiawi acak
     jeda_acak = random.randint(3, 7)
     print(f"[Anti-Ban] Menunggu jeda natural {jeda_acak} detik...")
     time.sleep(jeda_acak)
@@ -189,7 +228,7 @@ def kirim_ke_whatsapp(pesan):
         return False
 
 if __name__ == "__main__":
-    print("Memulai proses scraping dan penyusunan narasi humanis...")
+    print("Memulai proses scraping berita kurasi...")
     berita_terkumpul = ambil_berita_terbaru()
     pesan_siap_kirim = susun_pesan(berita_terkumpul)
     kirim_ke_whatsapp(pesan_siap_kirim)
