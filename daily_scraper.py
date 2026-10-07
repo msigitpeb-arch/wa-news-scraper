@@ -42,6 +42,65 @@ FEEDS = {
     ]
 }
 
+def parse_feed_dengan_headers(url):
+    """Mengambil RSS Feed dengan browser headers agar tidak terblokir firewall media."""
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        resp = requests.get(url, headers=headers, timeout=15)
+        return feedparser.parse(resp.content)
+    except Exception:
+        return feedparser.parse(url)
+
+def is_english_text(text):
+    """Mendeteksi apakah teks berbahasa Inggris."""
+    if not text:
+        return False
+    common_en = {"the", "and", "for", "with", "from", "about", "this", "that", "are", "was", "were", "of", "in", "to", "on", "at", "by", "is"}
+    words = set(text.lower().replace(":", " ").replace("-", " ").replace(".", " ").replace(",", " ").split())
+    en_matches = len(words.intersection(common_en))
+    id_matches = len(words.intersection({"yang", "di", "dan", "dari", "untuk", "ini", "itu", "pada", "oleh", "ke", "adalah"}))
+    return en_matches >= 2 or (en_matches >= 1 and id_matches == 0)
+
+def poles_bahasa_indonesia(teks):
+    """Poles terjemahan agar mengalir alami (Stop-Slop) dan tidak kaku ala robot."""
+    if not teks:
+        return ""
+    replacements = {
+        "Pusat Data": "Data Center",
+        "pusat data": "data center",
+        "Kecerdasan Buatan": "AI",
+        "kecerdasan buatan": "AI",
+        "situs Edge": "fasilitas Edge Data Center",
+        "Situs Edge": "Fasilitas Edge Data Center",
+        "pra-konstruksi": "fase awal pra-konstruksi",
+        "merupakan sebuah": "adalah",
+        "secara signifikan": "nyata",
+        "sangat penting": "krusial",
+        "pada hari ini": "hari ini",
+    }
+    for lama, baru in replacements.items():
+        teks = teks.replace(lama, baru)
+    return teks.strip()
+
+def terjemahkan_ke_indonesia(teks):
+    """Menerjemahkan teks bahasa Inggris ke Bahasa Indonesia murni."""
+    if not teks or not teks.strip():
+        return ""
+    try:
+        url = "https://translate.googleapis.com/translate_a/single"
+        params = {"client": "gtx", "sl": "auto", "tl": "id", "dt": "t", "q": teks}
+        headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+        res = requests.get(url, params=params, headers=headers, timeout=12)
+        if res.status_code == 200:
+            data = res.json()
+            hasil = "".join([s[0] for s in data[0] if s and s[0]])
+            return poles_bahasa_indonesia(hasil)
+    except Exception as e:
+        print(f"[Translate Warn] Gagal menerjemahkan: {e}")
+    return teks
+
 def bersihkan_html(raw_html):
     """Membersihkan tag HTML dan karakter aneh dari deskripsi feed."""
     if not raw_html:
@@ -52,14 +111,14 @@ def bersihkan_html(raw_html):
     return " ".join(text.split())
 
 def ambil_berita_terbaru():
-    """Mengambil berita terhangat per kategori dengan failover."""
+    """Mengambil berita terhangat per kategori dengan failover dan penerjemahan otomatis."""
     hasil_kategori = {}
 
     for kategori, daftar_sumber in FEEDS.items():
         hasil_kategori[kategori] = None
         for sumber in daftar_sumber:
             try:
-                feed = feedparser.parse(sumber["url"])
+                feed = parse_feed_dengan_headers(sumber["url"])
                 if not feed.entries:
                     continue
 
@@ -78,9 +137,17 @@ def ambil_berita_terbaru():
 
                 if artikel:
                     summary = bersihkan_html(artikel.get("summary", artikel.get("description", "")))
+                    judul = artikel.title.strip().replace("\ufffd", "").replace("", "")
+
+                    # Terjemahkan otomatis jika sumber/isi berbahasa Inggris (Stop-Slop Full Indonesia)
+                    if is_english_text(judul):
+                        judul = terjemahkan_ke_indonesia(judul)
+                    if is_english_text(summary):
+                        summary = terjemahkan_ke_indonesia(summary)
+
                     hasil_kategori[kategori] = {
                         "sumber": sumber["name"],
-                        "judul": artikel.title.strip().replace("\ufffd", "").replace("", ""),
+                        "judul": judul,
                         "link": artikel.link,
                         "ringkasan": summary
                     }
@@ -114,15 +181,22 @@ def potong_kalimat(teks, batas=180):
 
 def buat_narasi_topik(kategori, item):
     """
-    Format penulisan Stop-Slop:
-    1. Tanpa klise AI ("Langkah adaptasi iklim ini sangat krusial", "menjadi pengingat penting").
-    2. Langsung ke fakta dan konteks masalah nyata (seperti gaya tulisan di screenshot).
-    3. Nada santai rekan kerja (mengalir wajar).
-    4. Link disajikan langsung di bawahnya.
+    Format penulisan Stop-Slop Full Bahasa Indonesia:
+    1. Bebas campur aduk bahasa Inggris dan Indonesia (100% Full Indonesia).
+    2. Tanpa klise AI ("Langkah ini sangat krusial", "menjadi pengingat penting").
+    3. Langsung ke fakta dan konteks masalah nyata.
+    4. Link disajikan seragam dan bersih di bagian bawah.
     """
     judul = item["judul"]
     summary = item["ringkasan"]
     link = item["link"]
+
+    # Proteksi ganda jika masih ada potongan bahasa Inggris
+    if is_english_text(judul):
+        judul = terjemahkan_ke_indonesia(judul)
+    if is_english_text(summary):
+        summary = terjemahkan_ke_indonesia(summary)
+
     ringkas = potong_kalimat(summary) if summary else ""
 
     if kategori == "Renewable Energy & Lingkungan":
@@ -140,16 +214,16 @@ def buat_narasi_topik(kategori, item):
             f"{ringkas}\n"
             f"Peredaran data di ruang publik ini menegaskan pentingnya audit berkala "
             f"dan verifikasi sistem autentikasi di tiap unit operasional.\n\n"
-            f"Detail beritanya:\n{link}"
+            f"Selengkapnya dapat dibaca di sini:\n{link}"
         )
 
     elif kategori == "AI & Data Center":
         return (
             f"Soal infrastruktur AI dan komputasi, perkembangan soal *{judul}*.\n\n"
             f"{ringkas}\n"
-            f"Pertumbuhan model kecerdasan buatan saat ini terus menuntut kesiapan kapasitas data center "
+            f"Pertumbuhan model AI saat ini terus menuntut kesiapan kapasitas data center "
             f"dan efisiensi daya listrik yang jauh lebih hemat.\n\n"
-            f"Baca selengkapnya:\n{link}"
+            f"Selengkapnya dapat dibaca di sini:\n{link}"
         )
 
     else:  # Tech & Inovasi
@@ -157,7 +231,7 @@ def buat_narasi_topik(kategori, item):
             f"Sementara dari inovasi perangkat teknologi: *{judul}*.\n\n"
             f"{ringkas}\n"
             f"Integrasi fitur baru di perangkat pintar makin fokus ke akurasi sensor dan efisiensi baterai.\n\n"
-            f"Selengkapnya:\n{link}"
+            f"Selengkapnya dapat dibaca di sini:\n{link}"
         )
 
 def susun_pesan(berita):
