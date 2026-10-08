@@ -3,6 +3,7 @@ import sys
 import datetime
 import requests
 import feedparser
+import re
 from bs4 import BeautifulSoup
 
 # Pastikan output konsol mendukung Unicode (Emoji) di Windows
@@ -13,32 +14,51 @@ if sys.platform == "win32":
         pass
 
 # ==============================================================================
-# KONFIGURASI SUMBER BERITA KREDIBEL
+# KONFIGURASI SUMBER BERITA KREDIBEL (10 PORTAL UTAMA INDONESIA)
+# ==============================================================================
+# Prioritas portal media Indonesia:
+# 1. Antara News (antaranews.com - Kantor Berita Nasional)
+# 2. CNN Indonesia (cnnindonesia.com/teknologi)
+# 3. CNBC Indonesia (cnbcindonesia.com/tech)
+# 4. Detikcom / DetikINET (inet.detik.com)
+# 5. Mongabay Indonesia (mongabay.co.id)
+# 6. Sindonews (tekno.sindonews.com)
+# 7. Katadata (katadata.co.id/digital)
+# 8. Republika (republika.co.id/rss/inovasi)
+# 9. Jagat Review (jagatreview.com)
+# 10. Gizmologi (gizmologi.id)
 # ==============================================================================
 FEEDS = {
     # 1. Renewable Energy & Lingkungan
     "Renewable Energy & Lingkungan": [
         {"name": "Mongabay Indonesia", "url": "https://www.mongabay.co.id/feed/"},
-        {"name": "CleanTechnica", "url": "https://cleantechnica.com/feed/"},
+        {"name": "Katadata (Lingkungan & Energi)", "url": "https://katadata.co.id/rss/digital", "filter": ["energi", "iklim", "emisi", "hijau", "plts", "karbon", "listrik", "lingkungan", "air"]},
+        {"name": "Antara News (Lingkungan)", "url": "https://www.antaranews.com/rss/terkini.xml", "filter": ["lingkungan", "iklim", "energi", "plts", "hijau", "ebt", "sampah", "hutan", "kebakaran", "kekeringan", "air"]},
     ],
 
     # 2. Cyber Security
     "Cyber Security": [
-        {"name": "CNN Indonesia (Keamanan & Tekno)", "url": "https://www.cnnindonesia.com/teknologi/rss", "filter": ["bssn", "data", "kebocoran", "hacker", "siber", "keamanan", "serangan", "bobol", "malware", "ransomware", "security"]},
-        {"name": "The Hacker News", "url": "https://feeds.feedburner.com/TheHackersNews"},
+        {"name": "CNN Indonesia (Keamanan & Tekno)", "url": "https://www.cnnindonesia.com/teknologi/rss", "filter": ["bssn", "data", "kebocoran", "hacker", "siber", "keamanan", "serangan", "bobol", "malware", "ransomware", "security", "phishing"]},
+        {"name": "Detikcom (Inet Security)", "url": "https://inet.detik.com/rss", "filter": ["hacker", "siber", "bobol", "malware", "ransomware", "kebocoran", "keamanan", "data", "phishing", "dark web"]},
+        {"name": "Antara News (Siber)", "url": "https://www.antaranews.com/rss/tekno.xml", "filter": ["siber", "keamanan", "hacker", "malware", "data", "kebocoran", "bssn", "serangan"]},
+        {"name": "Sindonews (Siber)", "url": "https://tekno.sindonews.com/rss", "filter": ["siber", "hacker", "malware", "data", "keamanan", "bobol"]},
     ],
 
     # 3. AI & Data Center
     "AI & Data Center": [
-        {"name": "CNBC Indonesia (Tech & AI)", "url": "https://www.cnbcindonesia.com/tech/rss", "filter": ["ai", "data center", "server", "komputasi", "chip", "nvidia", "cloud", "intel", "teknologi"]},
-        {"name": "VentureBeat AI", "url": "https://venturebeat.com/category/ai/feed/"},
-        {"name": "Data Center Dynamics", "url": "https://www.datacenterdynamics.com/en/rss/"},
+        {"name": "CNBC Indonesia (Tech & AI)", "url": "https://www.cnbcindonesia.com/tech/rss", "filter": ["ai", "data center", "server", "komputasi", "chip", "nvidia", "cloud", "intel", "teknologi", "openai"]},
+        {"name": "Katadata (Digital & AI)", "url": "https://katadata.co.id/rss/digital", "filter": ["ai", "kecerdasan", "data center", "cloud", "startup", "komputasi", "chip"]},
+        {"name": "Detikcom (Inet AI)", "url": "https://inet.detik.com/rss", "filter": ["ai", "data center", "openai", "chatgpt", "chip", "nvidia", "cloud", "server"]},
+        {"name": "Republika (Inovasi & AI)", "url": "https://www.republika.co.id/rss/inovasi", "filter": ["ai", "teknologi", "komputasi", "data", "sistem", "digital"]},
     ],
 
     # 4. Tech & Inovasi Perkembangan Teknologi
     "Tech & Inovasi": [
         {"name": "Antara News (Tekno)", "url": "https://www.antaranews.com/rss/tekno.xml"},
-        {"name": "The Verge", "url": "https://www.theverge.com/rss/index.xml"},
+        {"name": "Detikcom (Inet)", "url": "https://inet.detik.com/rss"},
+        {"name": "Jagat Review", "url": "https://www.jagatreview.com/feed/"},
+        {"name": "Gizmologi", "url": "https://gizmologi.id/feed/"},
+        {"name": "Sindonews (Tekno)", "url": "https://tekno.sindonews.com/rss"},
     ]
 }
 
@@ -85,7 +105,7 @@ def poles_bahasa_indonesia(teks):
     return teks.strip()
 
 def terjemahkan_ke_indonesia(teks):
-    """Menerjemahkan teks bahasa Inggris ke Bahasa Indonesia murni."""
+    """Menerjemahkan teks bahasa Inggris ke Bahasa Indonesia murni jika ada istilah asing."""
     if not teks or not teks.strip():
         return ""
     try:
@@ -110,8 +130,92 @@ def bersihkan_html(raw_html):
     text = text.replace("\ufffd", " ")
     return " ".join(text.split())
 
+def bersihkan_teks_berita(teks):
+    """Membersihkan tag jurnalisme kota/media dan merapikan spasi."""
+    if not teks:
+        return ""
+    # Hilangkan prefix kota/media pers (cth: 'Jakarta (ANTARA) -', 'Jakarta, CNN Indonesia --')
+    pattern = r'^(?:[A-Za-z\s]{2,20}\s*\([A-Za-z\s]{2,12}\)|[A-Za-z\s]{2,20},\s*[A-Za-z0-9\s]{2,20}\s*--|[A-Za-z\s]{2,20},\s*[A-Za-z0-9\s]{2,20}\s*-)\s*[-–—]?\s*'
+    teks = re.sub(pattern, '', teks)
+    teks = " ".join(teks.split())
+    # Bersihkan sisa tanda baca di awal kalimat jika ada
+    teks = teks.lstrip(". ,;:!-–—\t\n")
+    return teks
+
+def ekstrak_paragraf_artikel(link):
+    """Mengambil paragraf pertama langsung dari halaman web jika ringkasan RSS terpotong."""
+    if not link:
+        return ""
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        resp = requests.get(link, headers=headers, timeout=8)
+        if resp.status_code != 200:
+            return ""
+        soup = BeautifulSoup(resp.content, "html.parser")
+        for tag in soup(["script", "style", "nav", "header", "footer", "aside"]):
+            tag.decompose()
+
+        selectors = [
+            "div.detail-text", "div.post-content", "div.read__content",
+            "div.detail__body-text", "article", "div.entry-content", "div.content"
+        ]
+        container = None
+        for sel in selectors:
+            c = soup.select_one(sel)
+            if c:
+                container = c
+                break
+
+        paragraphs = (container or soup).find_all("p")
+        for p in paragraphs:
+            txt = bersihkan_teks_berita(p.get_text(separator=" ", strip=True))
+            if len(txt) > 60 and not txt.lower().startswith(("baca juga", "simak", "foto:", "video:", "iklan")):
+                return txt
+    except Exception:
+        pass
+    return ""
+
+def buat_ringkasan_tuntas(raw_summary, link):
+    """
+    Menghasilkan ringkasan 1-2 kalimat utuh yang selesai dengan tanda titik.
+    Mencegah kalimat terpotong elipsis ('...') seperti pada kasus potongan teks feed.
+    """
+    teks = bersihkan_html(raw_summary)
+    teks = bersihkan_teks_berita(teks)
+
+    # Jika ringkasan feed terpotong dengan '...', tidak berujung titik, atau terlalu pendek
+    if not teks or teks.endswith("...") or not teks.endswith(".") or len(teks) < 70:
+        isi_asli = ekstrak_paragraf_artikel(link)
+        if isi_asli:
+            teks = isi_asli
+
+    # Hilangkan elipsis di akhir teks bila masih ada
+    teks = re.sub(r'\s*\.{2,}\s*$', '', teks).strip()
+    teks = bersihkan_teks_berita(teks)
+
+    # Pisahkan menjadi kalimat-kalimat utuh
+    kalimat_list = re.split(r'(?<=[.!?])\s+', teks)
+    hasil = []
+    total_len = 0
+    for k in kalimat_list:
+        k = k.strip()
+        if not k:
+            continue
+        hasil.append(k)
+        total_len += len(k)
+        # Batasi 1-2 kalimat (panjang ideal 100-220 karakter) agar padat dan compact
+        if total_len >= 110 or len(hasil) >= 2:
+            break
+
+    final_teks = " ".join(hasil)
+    if final_teks and not final_teks.endswith("."):
+        final_teks += "."
+    return final_teks
+
 def ambil_berita_terbaru():
-    """Mengambil berita terhangat per kategori dengan failover dan penerjemahan otomatis."""
+    """Mengambil berita terhangat per kategori dari 10 portal berita Indonesia."""
     hasil_kategori = {}
 
     for kategori, daftar_sumber in FEEDS.items():
@@ -136,10 +240,11 @@ def ambil_berita_terbaru():
                     artikel = feed.entries[0]
 
                 if artikel:
-                    summary = bersihkan_html(artikel.get("summary", artikel.get("description", "")))
                     judul = artikel.title.strip().replace("\ufffd", "").replace("", "")
+                    link = artikel.link
+                    summary = buat_ringkasan_tuntas(artikel.get("summary", artikel.get("description", "")), link)
 
-                    # Terjemahkan otomatis jika sumber/isi berbahasa Inggris (Stop-Slop Full Indonesia)
+                    # Terjemahkan jika ada judul/isi yang berbahasa Inggris (Stop-Slop Full Indonesia)
                     if is_english_text(judul):
                         judul = terjemahkan_ke_indonesia(judul)
                     if is_english_text(summary):
@@ -148,7 +253,7 @@ def ambil_berita_terbaru():
                     hasil_kategori[kategori] = {
                         "sumber": sumber["name"],
                         "judul": judul,
-                        "link": artikel.link,
+                        "link": link,
                         "ringkasan": summary
                     }
                     break
@@ -165,79 +270,33 @@ def dapatkan_salam_wib():
     jam = now_wib.hour
 
     if 13 <= jam < 19:
-        return "Sore rekan-rekan, ada beberapa info menarik seputar isu lingkungan dan industri tech hari ini:"
+        return "Sore rekan-rekan, ada beberapa info menarik seputar industri tech dan lingkungan hari ini:"
     else:
         return "Pagi team, semoga sehat selalu dan lancar aktivitasnya. Pagi ini ada update penting dari industri tech dan lingkungan:"
 
-def potong_kalimat(teks, batas=180):
-    """Memotong kalimat secara natural pada tanda titik terdekat."""
-    if len(teks) <= batas:
-        return teks
-    potongan = teks[:batas]
-    posisi_titik = potongan.rfind(".")
-    if posisi_titik > 60:
-        return potongan[:posisi_titik + 1]
-    return potongan.rsplit(" ", 1)[0] + "..."
-
 def buat_narasi_topik(kategori, item):
     """
-    Format penulisan Stop-Slop Full Bahasa Indonesia:
-    1. Bebas campur aduk bahasa Inggris dan Indonesia (100% Full Indonesia).
-    2. Tanpa klise AI ("Langkah ini sangat krusial", "menjadi pengingat penting").
-    3. Langsung ke fakta dan konteks masalah nyata.
-    4. Link disajikan seragam dan bersih di bagian bawah.
+    Format penulisan Stop-Slop Ringkas & Tuntas:
+    1. Mengurangi paragraf berlebih (tanpa komentar boilerplate statis buatan).
+    2. Format padat: Judul tebal + 1 paragraf ringkasan tuntas tanpa terpotong elipsis.
+    3. Link sumber di baris penutup.
     """
     judul = item["judul"]
     summary = item["ringkasan"]
     link = item["link"]
 
-    # Proteksi ganda jika masih ada potongan bahasa Inggris
+    # Proteksi ganda jika masih ada sisa bahasa Inggris
     if is_english_text(judul):
         judul = terjemahkan_ke_indonesia(judul)
     if is_english_text(summary):
         summary = terjemahkan_ke_indonesia(summary)
 
-    ringkas = potong_kalimat(summary) if summary else ""
-
-    if kategori == "Renewable Energy & Lingkungan":
-        return (
-            f"Terkait dampak iklim dan lingkungan, ada catatan soal *{judul}*.\n\n"
-            f"{ringkas}\n"
-            f"Kondisi ini bikin tantangan ketahanan pangan dan adaptasi lingkungan makin nyata di lapangan, "
-            f"terutama dampaknya ke ekosistem air dan pasokan lokal.\n\n"
-            f"Selengkapnya dapat dibaca di sini:\n{link}"
-        )
-
-    elif kategori == "Cyber Security":
-        return (
-            f"Dari ranah keamanan siber, update terbaru: *{judul}*.\n\n"
-            f"{ringkas}\n"
-            f"Peredaran data di ruang publik ini menegaskan pentingnya audit berkala "
-            f"dan verifikasi sistem autentikasi di tiap unit operasional.\n\n"
-            f"Selengkapnya dapat dibaca di sini:\n{link}"
-        )
-
-    elif kategori == "AI & Data Center":
-        return (
-            f"Soal infrastruktur AI dan komputasi, perkembangan soal *{judul}*.\n\n"
-            f"{ringkas}\n"
-            f"Pertumbuhan model AI saat ini terus menuntut kesiapan kapasitas data center "
-            f"dan efisiensi daya listrik yang jauh lebih hemat.\n\n"
-            f"Selengkapnya dapat dibaca di sini:\n{link}"
-        )
-
-    else:  # Tech & Inovasi
-        return (
-            f"Sementara dari inovasi perangkat teknologi: *{judul}*.\n\n"
-            f"{ringkas}\n"
-            f"Integrasi fitur baru di perangkat pintar makin fokus ke akurasi sensor dan efisiensi baterai.\n\n"
-            f"Selengkapnya dapat dibaca di sini:\n{link}"
-        )
+    return f"*{judul}*\n{summary}\n\nSelengkapnya:\n{link}"
 
 def susun_pesan(berita):
     """
     Menyusun pesan bergaya human-to-human:
-    - Tanpa emoji berderet-deret di setiap baris
+    - Ringkas dan padat tanpa paragraf redundan
     - Menggunakan pembatas garis bersih
     - Menghilangkan frasa template AI
     """

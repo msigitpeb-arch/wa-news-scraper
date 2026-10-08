@@ -61,36 +61,32 @@
 
 ---
 
-## 3. Kurasi Topik & Sumber Berita Kredibel
+## 3. Kurasi Topik & Prioritas 10 Portal Berita Indonesia
 
-Script menggunakan filter kata kunci dan **mekanisme failover** (jika media Indonesia belum memiliki artikel terbaru, otomatis beralih ke sumber global terpercaya):
+Sistem diprioritaskan penuh pada **10 portal berita nasional terpercaya dari Indonesia** (tanpa media asing) dengan sistem failover antar-kategori:
 
-### Topik 1 (Prioritas): Renewable Energy & Lingkungan
-* **Sumber Utama:** Mongabay Indonesia (`mongabay.co.id`)
-* **Cadangan:** CleanTechnica, GreenBiz
-
-### Topik 2: Cyber Security (Keamanan Siber)
-* **Sumber Utama:** CNN Indonesia Kanal Teknologi (`cnnindonesia.com/teknologi`)
-* **Cadangan:** The Hacker News (`thehackernews.com`), BleepingComputer (`bleepingcomputer.com`)
-
-### Topik 3: AI & Data Center
-* **Sumber Utama:** CNBC Indonesia Kanal Tech (`cnbcindonesia.com/tech`)
-* **Cadangan:** VentureBeat AI, Data Center Dynamics (DCD)
-
-### Topik 4: Tech & Inovasi Perkembangan Teknologi
-* **Sumber Utama:** Antara News Kanal Tekno (`antaranews.com/tekno`), Republika Inovasi
-* **Cadangan:** The Verge, Ars Technica
+| No | Portal Berita | Domain | Kategori Utama & Fokus |
+|---|---|---|---|
+| 1 | **Antara News** | `antaranews.com` | Tech & Inovasi, Keamanan Siber, Isu Lingkungan (Kantor Berita Nasional) |
+| 2 | **CNN Indonesia** | `cnnindonesia.com` | Cyber Security & Teknologi |
+| 3 | **CNBC Indonesia** | `cnbcindonesia.com` | AI, Komputasi Cloud, & Data Center |
+| 4 | **Detikcom (DetikINET)**| `inet.detik.com` | Tren Gadget, Cyber Security, & AI |
+| 5 | **Mongabay Indonesia** | `mongabay.co.id` | Renewable Energy, Krisis Air, & Lingkungan Hidup |
+| 6 | **Sindonews** | `sindonews.com` | Sains, Hardware, & Perkembangan Teknologi |
+| 7 | **Katadata** | `katadata.co.id` | Ekonomi Hijau, Startup, & AI Digital |
+| 8 | **Republika (Inovasi)** | `republika.co.id` | Transformasi Digital & Inovasi Sistem |
+| 9 | **Jagat Review** | `jagatreview.com` | Review Hardware, Komponen PC, & Gadget |
+| 10 | **Gizmologi** | `gizmologi.id` | Tren Perangkat Konsumen & Gadget Mobile |
 
 ---
 
-## 4. Gaya Bahasa & Formatting (Stop-Slop Standard — 100% Full Indonesia)
+## 4. Gaya Bahasa & Formatting (Stop-Slop Ringkas & Tuntas)
 
-Formatting output disusun mengikuti prinsip **anti-slop** dan **konsistensi satu bahasa penuh**:
-1. **100% Full Bahasa Indonesia (Anti Gado-Gado):** Jika berita diambil dari sumber global berbahasa Inggris (CleanTechnica, The Hacker News, VentureBeat, DCD, The Verge), judul dan ringkasan otomatis diterjemahkan ke Bahasa Indonesia sebelum disatukan ke narasi briefing. Tidak ada lagi kalimat bahasa Inggris yang tercampur di tengah paragraf Indonesia.
-2. **Polishing Istilah Tech Alami:** Mesin terjemahan dipoles agar tidak kaku ("Pusat Data" → "Data Center", "Kecerdasan Buatan" → "AI", "situs Edge" → "fasilitas Edge Data Center").
-3. **Bebas Klise AI:** Tidak menggunakan frasa generik seperti *"Langkah ini sangat krusial...", "Menjadi pengingat penting...", "Menandai babak baru..."*.
-4. **Konteks Nyata:** Penjelasan langsung mengarah ke inti permasalahan (dampak riil, operasional, ketahanan pangan, keamanan data, efisiensi komputasi).
-5. **Pembatas & Link Bersih:** Menggunakan garis pembatas tipis (`─────────────────────`) dan format link seragam (`Selengkapnya dapat dibaca di sini:`).
+Formatting output disusun mengikuti prinsip **anti-slop padat, humanis, dan tuntas**:
+1. **Ringkas & Bebas Paragraf Berlebih:** Menghilangkan komentar boilerplate statis buatan bot yang dipaksakan di tiap topik. Setiap berita langsung menyajikan Judul Tebal, 1 paragraf ringkasan tuntas (1-2 kalimat), dan link sumber.
+2. **Anti-Gantung (Penyelesaian Kalimat Terpotong):** Jika ringkasan bawaan RSS feed terpotong elipsis (`...`) di tengah jalan (seperti fenomena potongan kata "True Wireless Stereo ..."), sistem otomatis mengambil paragraf pertama dari halaman web asli agar kalimatnya selesai utuh hingga tanda titik (`.`).
+3. **Pembersihan Prefix Pers:** Menghapus tag kota dan media di awal teks secara presisi (misalnya `Jakarta (ANTARA) -` atau `Jakarta, CNN Indonesia --`) tanpa merusak akronim penting seperti `(TWS)`.
+4. **Pembatas Bersih:** Menggunakan garis pembatas tipis (`─────────────────────`) dan format link langsung.
 
 ---
 
