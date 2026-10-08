@@ -142,60 +142,12 @@ def bersihkan_teks_berita(teks):
     teks = teks.lstrip(". ,;:!-–—\t\n")
     return teks
 
-def ekstrak_paragraf_artikel(link):
-    """Mengambil paragraf pertama langsung dari halaman web jika ringkasan RSS terpotong."""
-    if not link:
+def selesaikan_kalimat(teks, max_kalimat=2):
+    """Memastikan teks berakhir pada tanda titik tanpa terpotong elipsis."""
+    if not teks:
         return ""
-    try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-        }
-        resp = requests.get(link, headers=headers, timeout=8)
-        if resp.status_code != 200:
-            return ""
-        soup = BeautifulSoup(resp.content, "html.parser")
-        for tag in soup(["script", "style", "nav", "header", "footer", "aside"]):
-            tag.decompose()
-
-        selectors = [
-            "div.detail-text", "div.post-content", "div.read__content",
-            "div.detail__body-text", "article", "div.entry-content", "div.content"
-        ]
-        container = None
-        for sel in selectors:
-            c = soup.select_one(sel)
-            if c:
-                container = c
-                break
-
-        paragraphs = (container or soup).find_all("p")
-        for p in paragraphs:
-            txt = bersihkan_teks_berita(p.get_text(separator=" ", strip=True))
-            if len(txt) > 60 and not txt.lower().startswith(("baca juga", "simak", "foto:", "video:", "iklan")):
-                return txt
-    except Exception:
-        pass
-    return ""
-
-def buat_ringkasan_tuntas(raw_summary, link):
-    """
-    Menghasilkan ringkasan 1-2 kalimat utuh yang selesai dengan tanda titik.
-    Mencegah kalimat terpotong elipsis ('...') seperti pada kasus potongan teks feed.
-    """
-    teks = bersihkan_html(raw_summary)
-    teks = bersihkan_teks_berita(teks)
-
-    # Jika ringkasan feed terpotong dengan '...', tidak berujung titik, atau terlalu pendek
-    if not teks or teks.endswith("...") or not teks.endswith(".") or len(teks) < 70:
-        isi_asli = ekstrak_paragraf_artikel(link)
-        if isi_asli:
-            teks = isi_asli
-
-    # Hilangkan elipsis di akhir teks bila masih ada
     teks = re.sub(r'\s*\.{2,}\s*$', '', teks).strip()
     teks = bersihkan_teks_berita(teks)
-
-    # Pisahkan menjadi kalimat-kalimat utuh
     kalimat_list = re.split(r'(?<=[.!?])\s+', teks)
     hasil = []
     total_len = 0
@@ -205,14 +157,73 @@ def buat_ringkasan_tuntas(raw_summary, link):
             continue
         hasil.append(k)
         total_len += len(k)
-        # Batasi 1-2 kalimat (panjang ideal 100-220 karakter) agar padat dan compact
-        if total_len >= 110 or len(hasil) >= 2:
+        if total_len >= 130 or len(hasil) >= max_kalimat:
             break
+    res = ' '.join(hasil)
+    if res and not res.endswith('.'):
+        res += '.'
+    return res
 
-    final_teks = " ".join(hasil)
-    if final_teks and not final_teks.endswith("."):
-        final_teks += "."
-    return final_teks
+def ekstrak_dua_paragraf(link, fallback_summary):
+    """
+    Mengambil 2 paragraf compact dari artikel:
+    Paragraf 1: Fakta inti berita (1-2 kalimat).
+    Paragraf 2: Konteks lanjutan / dampak / latar belakang (1-2 kalimat).
+    """
+    p1 = ""
+    p2 = ""
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    try:
+        resp = requests.get(link, headers=headers, timeout=8)
+        if resp.status_code == 200:
+            soup = BeautifulSoup(resp.content, "html.parser")
+            for tag in soup(["script", "style", "nav", "header", "footer", "aside"]):
+                tag.decompose()
+            selectors = [
+                "div.detail-text", "div.post-content", "div.read__content",
+                "div.detail__body-text", "article", "div.entry-content", "div.content"
+            ]
+            container = None
+            for sel in selectors:
+                c = soup.select_one(sel)
+                if c:
+                    container = c
+                    break
+            if container:
+                paragraphs = container.find_all("p")
+                ps = []
+                for p_tag in paragraphs:
+                    txt = bersihkan_teks_berita(p_tag.get_text(separator=" ", strip=True))
+                    if len(txt) > 50 and not txt.lower().startswith(("baca juga", "simak", "foto:", "video:", "iklan")):
+                        if not txt.endswith(":"):
+                            clean_p = selesaikan_kalimat(txt, max_kalimat=2)
+                            if clean_p and clean_p not in ps:
+                                ps.append(clean_p)
+                    if len(ps) >= 2:
+                        break
+                if len(ps) >= 2:
+                    p1, p2 = ps[0], ps[1]
+                elif len(ps) == 1:
+                    p1 = ps[0]
+    except Exception:
+        pass
+
+    # Fallback jika belum dapat 2 paragraf
+    if not p1:
+        clean_fb = bersihkan_teks_berita(fallback_summary)
+        p1 = selesaikan_kalimat(clean_fb, max_kalimat=2)
+
+    if not p2:
+        clean_fb = bersihkan_teks_berita(fallback_summary)
+        kalimat_fb = re.split(r'(?<=[.!?])\s+', clean_fb)
+        if len(kalimat_fb) >= 3:
+            p2 = selesaikan_kalimat(" ".join(kalimat_fb[1:3]), max_kalimat=2)
+            if p2 == p1:
+                p2 = ""
+
+    return p1, p2
 
 def ambil_berita_terbaru():
     """Mengambil berita terhangat per kategori dari 10 portal berita Indonesia."""
@@ -242,19 +253,22 @@ def ambil_berita_terbaru():
                 if artikel:
                     judul = artikel.title.strip().replace("\ufffd", "").replace("", "")
                     link = artikel.link
-                    summary = buat_ringkasan_tuntas(artikel.get("summary", artikel.get("description", "")), link)
+                    p1, p2 = ekstrak_dua_paragraf(link, artikel.get("summary", artikel.get("description", "")))
 
                     # Terjemahkan jika ada judul/isi yang berbahasa Inggris (Stop-Slop Full Indonesia)
                     if is_english_text(judul):
                         judul = terjemahkan_ke_indonesia(judul)
-                    if is_english_text(summary):
-                        summary = terjemahkan_ke_indonesia(summary)
+                    if is_english_text(p1):
+                        p1 = terjemahkan_ke_indonesia(p1)
+                    if is_english_text(p2):
+                        p2 = terjemahkan_ke_indonesia(p2)
 
                     hasil_kategori[kategori] = {
                         "sumber": sumber["name"],
                         "judul": judul,
                         "link": link,
-                        "ringkasan": summary
+                        "p1": p1,
+                        "p2": p2
                     }
                     break
             except Exception as e:
@@ -282,22 +296,29 @@ def dapatkan_salam_wib():
 
 def buat_narasi_topik(kategori, item):
     """
-    Format penulisan Stop-Slop Ringkas & Tuntas:
-    1. Mengurangi paragraf berlebih (tanpa komentar boilerplate statis buatan).
-    2. Format padat: Judul tebal + 1 paragraf ringkasan tuntas tanpa terpotong elipsis.
-    3. Link sumber di baris penutup.
+    Format penulisan Stop-Slop 2 Paragraf Compact:
+    - Judul tebal
+    - Paragraf 1: Fakta inti berita (1-2 kalimat utuh)
+    - Paragraf 2: Konteks lanjutan / dampak (1-2 kalimat utuh)
+    - Link sumber di baris penutup
     """
     judul = item["judul"]
-    summary = item["ringkasan"]
+    p1 = item["p1"]
+    p2 = item.get("p2", "")
     link = item["link"]
 
     # Proteksi ganda jika masih ada sisa bahasa Inggris
     if is_english_text(judul):
         judul = terjemahkan_ke_indonesia(judul)
-    if is_english_text(summary):
-        summary = terjemahkan_ke_indonesia(summary)
+    if is_english_text(p1):
+        p1 = terjemahkan_ke_indonesia(p1)
+    if p2 and is_english_text(p2):
+        p2 = terjemahkan_ke_indonesia(p2)
 
-    return f"*{judul}*\n{summary}\n\nSelengkapnya:\n{link}"
+    if p2:
+        return f"*{judul}*\n{p1}\n\n{p2}\n\nSelengkapnya:\n{link}"
+    else:
+        return f"*{judul}*\n{p1}\n\nSelengkapnya:\n{link}"
 
 def susun_pesan(berita):
     """

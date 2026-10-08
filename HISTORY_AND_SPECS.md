@@ -88,11 +88,11 @@ Sistem diprioritaskan penuh pada **10 portal berita nasional terpercaya dari Ind
 
 ---
 
-## 4. Gaya Bahasa & Formatting (Stop-Slop Ringkas & Tuntas)
+## 4. Gaya Bahasa & Formatting (Stop-Slop 2 Paragraf Compact & Tuntas)
 
 Formatting output disusun mengikuti prinsip **anti-slop padat, humanis, dan tuntas**:
-1. **Ringkas & Bebas Paragraf Berlebih:** Menghilangkan komentar boilerplate statis buatan bot yang dipaksakan di tiap topik. Setiap berita langsung menyajikan Judul Tebal, 1 paragraf ringkasan tuntas (1-2 kalimat), dan link sumber.
-2. **Anti-Gantung (Penyelesaian Kalimat Terpotong):** Jika ringkasan bawaan RSS feed terpotong elipsis (`...`) di tengah jalan (seperti fenomena potongan kata "True Wireless Stereo ..."), sistem otomatis mengambil paragraf pertama dari halaman web asli agar kalimatnya selesai utuh hingga tanda titik (`.`).
+1. **2 Paragraf Compact per Topik:** Setiap item berita menyajikan Judul Tebal diikuti tepat **2 paragraf padat** yang saling melengkapi (Paragraf 1: Fakta inti berita; Paragraf 2: Konteks lanjutan, dampak, atau latar belakang penting) dan diakhiri tautan sumber.
+2. **Anti-Gantung (Penyelesaian Kalimat Terpotong):** Jika ringkasan bawaan RSS feed terpotong elipsis (`...`) di tengah jalan (seperti fenomena potongan kata "True Wireless Stereo ..."), sistem otomatis mengambil paragraf pertama dan kedua dari halaman web asli agar seluruh kalimat selesai utuh hingga tanda titik (`.`).
 3. **Pembersihan Prefix Pers:** Menghapus tag kota dan media di awal teks secara presisi (misalnya `Jakarta (ANTARA) -` atau `Jakarta, CNN Indonesia --`) tanpa merusak akronim penting seperti `(TWS)`.
 4. **Pembatas Bersih:** Menggunakan garis pembatas tipis (`─────────────────────`) dan format link langsung.
 
