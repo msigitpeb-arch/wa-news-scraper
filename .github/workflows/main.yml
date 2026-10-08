@@ -1,11 +1,6 @@
 name: Daily Tech News to WhatsApp
 
 on:
-  schedule:
-    # 08:05 UTC = 15:05 WIB (Sore - menghindari antrean menit 00)
-    - cron: '25 8 * * *'
-    # 14:05 UTC = 21:05 WIB (Malam - menghindari antrean menit 00)
-    - cron: '25 15 * * *'
   workflow_dispatch:
 
 jobs:

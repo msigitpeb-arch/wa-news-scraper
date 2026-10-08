@@ -264,15 +264,21 @@ def ambil_berita_terbaru():
     return hasil_kategori
 
 def dapatkan_salam_wib():
-    """Sapaan natural tanpa template robot."""
+    """Sapaan natural fleksibel sesuai jam eksekusi cron job."""
     now_utc = datetime.datetime.now(datetime.timezone.utc)
     now_wib = now_utc + datetime.timedelta(hours=7)
     jam = now_wib.hour
 
-    if 13 <= jam < 19:
-        return "Sore rekan-rekan, ada beberapa info menarik seputar industri tech dan lingkungan hari ini:"
+    if 5 <= jam < 11:
+        sapaan = "Pagi rekan-rekan"
+    elif 11 <= jam < 15:
+        sapaan = "Siang rekan-rekan"
+    elif 15 <= jam < 19:
+        sapaan = "Sore rekan-rekan"
     else:
-        return "Pagi team, semoga sehat selalu dan lancar aktivitasnya. Pagi ini ada update penting dari industri tech dan lingkungan:"
+        sapaan = "Malam rekan-rekan"
+
+    return f"{sapaan}, ada beberapa update penting seputar industri tech dan lingkungan hari ini:"
 
 def buat_narasi_topik(kategori, item):
     """

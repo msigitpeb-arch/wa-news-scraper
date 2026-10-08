@@ -50,14 +50,22 @@
 
 ---
 
-## 2. Jadwal & Konfigurasi Salam (WIB / GMT+7)
+## 2. Trigger Eksternal Cron Job & Sapaan Dinamis
 
-| Jadwal Eksekusi | Jam UTC | Sapaan Otomatis | Target & Fungsi |
-|---|---|---|---|
-| **15:00 WIB (3 Sore)** | `08:00 UTC` | *"Sore team, jelang akhir jam kerja ada beberapa kabar penting dari industri tech & green energy nih✨"* | Update sore hari santai. |
-| **21:00 WIB (9 Malam)** | `14:00 UTC` | *"Pagi team, semoga sehat selalu dan lancar aktivitasnya. Pagi ini ada update penting dari industri tech dan lingkungan:"* | Kurasi malam yang otomatis memakai salam pagi hari agar siap dibaca anggota tim di grup pagi-pagi. |
+Trigger internal GitHub Actions (`schedule:`) **telah dihapus sepenuhnya** agar tidak terjadi tumpang-tindih atau delay antrean. Seluruh eksekusi kini 100% dikendalikan oleh **external cron job** (seperti cron-job.org atau server cron mandiri) yang menembak endpoint GitHub API `workflow_dispatch`.
 
-> **Catatan Trigger Jadwal:** Mengingat scheduler `cron` native GitHub Actions sering mengalami antrean/delay hingga puluhan menit, penjadwalan presisi di-trigger menggunakan **cron-job.org** yang menembak API GitHub `workflow_dispatch`.
+Script secara otomatis menyesuaikan salam pembuka berdasarkan jam WIB saat cron job dieksekusi:
+
+| Rentang Waktu (WIB) | Sapaan Otomatis |
+|---|---|
+| **05:00 - 10:59 WIB** | *"Pagi rekan-rekan, ada beberapa update penting seputar industri tech dan lingkungan hari ini:"* |
+| **11:00 - 14:59 WIB** | *"Siang rekan-rekan, ada beberapa update penting seputar industri tech dan lingkungan hari ini:"* |
+| **15:00 - 18:59 WIB** | *"Sore rekan-rekan, ada beberapa update penting seputar industri tech dan lingkungan hari ini:"* |
+| **19:00 - 04:59 WIB** | *"Malam rekan-rekan, ada beberapa update penting seputar industri tech dan lingkungan hari ini:"* |
+
+> **Cara Setup di cron-job.org:** Buat job baru dengan method `POST` ke URL GitHub API:
+> `https://api.github.com/repos/msigitpeb-arch/wa-news-scraper/actions/workflows/main.yml/dispatches`
+> dengan header `Authorization: Bearer <GITHUB_PAT>` dan body `{"ref": "main"}`.
 
 ---
 
