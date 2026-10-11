@@ -91,7 +91,7 @@ CFG = {
     "tg_token": env("TELEGRAM_BOT_TOKEN"),
     "tg_chat": env("TELEGRAM_CHAT_ID"),
     "tg_thread": env("TELEGRAM_THREAD_ID"),  # ID topik di grup forum (opsional)
-    "audience": env("AUDIENCE", "rekan-rekan"),
+    "audience": env("AUDIENCE", "Rekan-rekan"),
     "send_mode": env("SEND_MODE", "split").lower(),  # split | digest
     "max_age_hours": int(env("MAX_AGE_HOURS", "36")),
     "history_days": int(env("HISTORY_DAYS", "10")),
