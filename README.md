@@ -1,3 +1,5 @@
+> **Dipindah.** Kode ini sekarang ada di [hermes-office/news-scraper](https://github.com/msigitpeb-arch/hermes-office/tree/main/news-scraper). Repo ini tidak diperbarui lagi.
+
 # Daily News Scraper → WhatsApp / Telegram
 
 Mengirim bacaan berita harian (Lingkungan & Energi, Keamanan Siber, AI & Data Center, Tech) ke WhatsApp (Fonnte) dan/atau Telegram, dua kali sehari: **15:00 WIB** (sore) dan **21:00 WIB** (malam). Berita ditulis ulang oleh LLM lewat 9router dengan gaya rekan kerja yang membagikan bacaan.
