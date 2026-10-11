@@ -21,6 +21,28 @@ metadata:
 - Simpan dan kirim ke Telegram: `python3 ${HERMES_SKILL_DIR}/scripts/save_plan.py`
 - File spreadsheet: `~/hermes-data/content-plan/peoplesync_content_plan.csv`
 
+## Mode Tim (Kanban): dipakai kalau profile `content-planner` dan `content-reviewer` ada
+
+Cek dulu dengan `hermes profile list`. Kalau kedua profile ada, alurnya dibagi per peran. Langkah 1-4 di bagian Procedure tetap jadi standar kerja, tapi dikerjakan oleh peran yang berbeda.
+
+**Kalau kamu LEAD (profile default, sedang ngobrol dengan SML):**
+1. Jangan menyusun konten sendiri. Buat kartu Kanban:
+   `kanban_create(title="Content plan PeopleSync: <ringkas permintaan>", assignee="content-planner", body="<permintaan SML lengkap: periode, jumlah konten, platform, catatan khusus>. Pakai skill content-planning. Simpan draft ke ~/hermes-data/content-plan/drafts/<task_id>.json lalu request review ke content-reviewer.")`
+2. Balas SML: kartu sudah dibuat, tim sedang bekerja, hasil akan dikirim ke topik ini sebagai file CSV.
+3. Untuk review SML (approve / revisi / tolak), ikuti langkah 6. Revisi dikirim sebagai kartu baru ke content-planner dengan ID baris dan catatan SML di body.
+
+**Kalau kamu CONTENT-PLANNER (worker Kanban):**
+1. Kerjakan langkah 0-1 (pembuat). Tulis JSON draft ke `~/hermes-data/content-plan/drafts/<task_id>.json`.
+2. Panggil `kanban_request_review` dengan reviewer `content-reviewer` dan summary berisi path file draft + jumlah konten.
+3. Kalau kartu kembali dengan permintaan perubahan, perbaiki HANYA baris yang dikoreksi, timpa file draft, lalu request review lagi.
+
+**Kalau kamu CONTENT-REVIEWER:**
+1. Baca draft dari path di summary. Nilai setiap baris dengan `checker-rubric.md` dan `peoplesync-brief.md`. Kamu tidak tahu alasan pembuat, dan memang tidak perlu.
+2. Ada baris "revisi" dan ini belum putaran ke-3: panggil `kanban_request_changes` dengan koreksi per ID dalam format JSON rubrik.
+3. Semua baris lolos (atau sudah putaran ke-3): buang baris yang masih gagal, isi `skor_checker`, `catatan_checker`, `status` = "Menunggu review SML", lalu jalankan langkah 4 (save_plan.py add ... --send). Setelah itu `kanban_complete` dengan ringkasan langkah 5.
+
+Kalau profile tim tidak ada, kerjakan seluruh Procedure sendiri seperti di bawah.
+
 ## Procedure
 
 ### 0. Pahami permintaan
