@@ -1,4 +1,8 @@
-name: Daily Tech News to WhatsApp
+name: Daily Tech News to WhatsApp (manual fallback)
+
+# Jadwal utama sekarang jalan di VPS (cron 15:00 & 21:00 WIB) memakai LLM via 9router.
+# Workflow ini hanya cadangan manual. Runner GitHub tidak bisa menjangkau 9router,
+# jadi di sini script otomatis memakai mode ekstraktif (--no-llm).
 
 on:
   workflow_dispatch:
@@ -27,4 +31,4 @@ jobs:
           FONNTE_TOKEN: ${{ secrets.FONNTE_TOKEN }}
           WA_TARGET_NUMBER: ${{ secrets.WA_TARGET_NUMBER }}
         run: |
-          python daily_scraper.py
+          python daily_scraper.py --no-llm
