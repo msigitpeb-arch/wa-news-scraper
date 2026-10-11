@@ -90,6 +90,7 @@ CFG = {
     "wa_target": env("WA_TARGET_NUMBER"),
     "tg_token": env("TELEGRAM_BOT_TOKEN"),
     "tg_chat": env("TELEGRAM_CHAT_ID"),
+    "tg_thread": env("TELEGRAM_THREAD_ID"),  # ID topik di grup forum (opsional)
     "audience": env("AUDIENCE", "rekan-rekan"),
     "send_mode": env("SEND_MODE", "split").lower(),  # split | digest
     "max_age_hours": int(env("MAX_AGE_HOURS", "36")),
@@ -634,10 +635,13 @@ def kirim_telegram(daftar_pesan):
     ok = True
     for i, pesan in enumerate(daftar_pesan):
         teks = re.sub(r"\*([^*\n]+)\*", r"\1", pesan)  # format bold WA -> teks biasa
+        payload = {"chat_id": CFG["tg_chat"], "text": teks}
+        if CFG["tg_thread"]:
+            payload["message_thread_id"] = int(CFG["tg_thread"])
         try:
             res = requests.post(
                 f"https://api.telegram.org/bot{CFG['tg_token']}/sendMessage",
-                json={"chat_id": CFG["tg_chat"], "text": teks},
+                json=payload,
                 timeout=30,
             ).json()
             log(f"[TG] Pesan {i + 1}/{len(daftar_pesan)}: ok={res.get('ok')}")
