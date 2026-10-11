@@ -408,7 +408,8 @@ Aturan isi:
 - Panjang total 70 sampai 140 kata.
 
 Aturan bahasa:
-- Bahasa Indonesia yang luwes dan rapi. Istilah teknis yang lazim boleh tetap dalam bahasa aslinya (AI, data center, cloud, ransomware, phishing).
+- Bahasa Indonesia yang luwes dan rapi sebagai basis.
+- Istilah Inggris yang lazim dipakai apa adanya oleh profesional Indonesia JANGAN diterjemahkan, karena terjemahannya terdengar kaku atau malah tidak dikenal. Contoh: malware, malicious, ransomware, phishing, hacker, deepfake, AI, data center, cloud, server, startup, update, upgrade, chip, GPU, dashboard, platform. Tulis "serangan malware", bukan "serangan perangkat lunak berbahaya".
 - Kalimat aktif dan langsung. Variasikan panjang kalimat.
 - Dilarang: emoji, tanda seru, markdown, tanda bintang, judul, bullet, tanda pisah panjang (—), salam pembuka, link, dan tagar.
 - Hindari frasa klise: "di era", "mari kita", "tak dapat dipungkiri", "perlu dicatat", "menariknya", "hal ini menunjukkan", "dalam lanskap", "sangat penting", "krusial", "tidak hanya ... tetapi juga", "pada akhirnya", "secara keseluruhan".
