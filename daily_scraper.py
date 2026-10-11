@@ -403,6 +403,7 @@ Aturan isi:
 - Paragraf 1 (2-3 kalimat): inti berita. Apa yang terjadi, siapa, di mana, kapan, dan angka kunci kalau ada.
 - Paragraf 2 (2-3 kalimat): konteks atau dampaknya, terutama untuk Indonesia, dunia kerja, atau industri. Boleh menarik benang merah yang wajar dari isi sumber, tanpa spekulasi.
 - Paragraf 3 opsional (1-2 kalimat): langkah praktis yang bisa dilakukan pembaca. Tulis hanya kalau beritanya memang mengarah ke sana (misalnya soal keamanan siber atau lingkungan). Kalau tidak relevan, jangan ditulis.
+- Untuk berita produk, fokus ke apa yang baru dan siapa yang diuntungkan. Jangan menulis seperti iklan: lewati detail promo, bonus pembelian, dan cara membeli.
 - Panjang total 70 sampai 140 kata.
 
 Aturan bahasa:
